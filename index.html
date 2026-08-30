@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Kajian Ustadz Umar Abu Abdillah - Syarah Aqidah</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Jakarta Sans -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@fontsource/jakarta-sans@5.0.5/index.min.css">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .visualizer-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 1rem;
+            background:
+                radial-gradient(
+                    circle at center,
+                    #1e293b 0%,
+                    #0f172a 100%
+                );
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        input[type=range]::-moz-range-thumb {
+            height: 16px;
+            width: 16px;
+            border: none;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+        }
+
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        .animate-pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .7;
+            }
+        }
+    </style>
+</head>
+
+<body
+    class="min-h-screen flex flex-col items-center justify-center p-4
+           bg-[url('https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=2000&auto=format&fit=crop')]
+           bg-cover bg-center bg-no-repeat bg-fixed"
+>
+
+    <!-- Background Overlay -->
+    <div class="fixed inset-0 bg-slate-900/90 z-0"></div>
+
+
+    <!-- ========================= -->
+    <!-- AUDIO PLAYER -->
+    <!-- ========================= -->
+
+    <main
+        class="relative z-10 w-full max-w-md md:max-w-lg
+               glass-panel rounded-3xl shadow-2xl
+               overflow-hidden transition-all duration-300
+               hover:shadow-cyan-900/20"
+    >
+
+        <!-- Header -->
+        <div class="p-6 pb-2 text-center">
+
+            <div
+                class="inline-block px-3 py-1 mb-4
+                       text-xs font-semibold tracking-wider
+                       text-cyan-400 uppercase
+                       bg-cyan-900/30 rounded-full
+                       border border-cyan-800/50"
+            >
+                Audio Kajian
+            </div>
+
+            <h1
+                class="text-xl md:text-2xl font-bold
+                       text-white mb-1 leading-tight"
+            >
+                Syarah Aqidah Ahlisunnah waljamaah
+            </h1>
+
+            <p class="text-slate-400 text-sm">
+                Ustadz Umar Abu Abdillah
+            </p>
+
+        </div>
+
+
+        <!-- Visualizer -->
+        <div class="px-6 py-4">
+
+            <div
+                class="visualizer-container shadow-inner
+                       border border-slate-700/50"
+            >
+
+                <canvas id="audioVisualizer"></canvas>
+
+                <!-- Placeholder -->
+                <div
+                    id="visualizerPlaceholder"
+                    class="absolute inset-0 flex items-center
+                           justify-center pointer-events-none"
+                >
+
+                    <div
+                        class="w-16 h-16 rounded-full
+                               bg-slate-800/50
+                               flex items-center justify-center
+                               animate-pulse-slow"
+                    >
+
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-8 w-8 text-slate-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                            />
+                        </svg>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Controls -->
+        <div class="p-6 pt-2 space-y-6">
+
+            <!-- Progress -->
+            <div class="space-y-2">
+
+                <div
+                    class="flex justify-between
+                           text-xs text-slate-400 font-mono"
+                >
+                    <span id="currentTime">00:00</span>
+                    <span id="duration">00:00</span>
+                </div>
+
+                <input
+                    type="range"
+                    id="progressBar"
+                    value="0"
+                    min="0"
+                    max="100"
+                    class="w-full h-1 bg-slate-700
+                           rounded-lg appearance-none cursor-pointer"
+                >
+
+            </div>
+
+
+            <!-- Main Buttons -->
+            <div
+                class="flex items-center justify-center gap-8"
+            >
+
+                <!-- Rewind -->
+                <button
+                    id="btnRewind"
+                    aria-label="Mundur 10 detik"
+                    class="text-slate-400
+                           hover:text-white transition-colors
+                           p-2 rounded-full hover:bg-slate-800"
+                >
+
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"
+                        />
+                    </svg>
+
+                </button>
+
+
+                <!-- Play / Pause -->
+                <button
+                    id="btnPlayPause"
+                    aria-label="Putar atau jeda audio"
+                    class="w-16 h-16 flex items-center
+                           justify-center
+                           bg-cyan-500 hover:bg-cyan-400
+                           text-white rounded-full
+                           shadow-lg shadow-cyan-500/30
+                           transition-all transform
+                           hover:scale-105 active:scale-95"
+                >
+
+                    <!-- Play -->
+                    <svg
+                        id="iconPlay"
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-8 w-8 ml-1"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                    >
+                        <path
+                            fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                            clip-rule="evenodd"
+                        />
+                    </svg>
+
+                    <!-- Pause -->
+                    <svg
+                        id="iconPause"
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-8 w-8 hidden"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                    >
+                        <path
+                            fill-rule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clip-rule="evenodd"
+                        />
+                    </svg>
+
+                </button>
+
+
+                <!-- Forward -->
+                <button
+                    id="btnForward"
+                    aria-label="Maju 10 detik"
+                    class="text-slate-400
+                           hover:text-white transition-colors
+                           p-2 rounded-full hover:bg-slate-800"
+                >
+
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z"
+                        />
+                    </svg>
+
+                </button>
+
+            </div>
+
+
+            <!-- Volume -->
+            <div
+                class="flex items-center gap-3 px-4"
+            >
+
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4 text-slate-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                    />
+                </svg>
+
+                <input
+                    type="range"
+                    id="volumeSlider"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="1"
+                    class="w-full h-1 bg-slate-700
+                           rounded-lg appearance-none cursor-pointer"
+                >
+
+            </div>
+
+        </div>
+
+
+        <!-- Status -->
+        <div
+            class="bg-slate-900/50 p-3 text-center
+                   border-t border-slate-800"
+        >
+
+            <p
+                id="statusText"
+                class="text-xs text-slate-500"
+            >
+                Siap memutar audio
+            </p>
+
+        </div>
+
+    </main>
+
+
+    <!-- ========================= -->
+    <!-- FOOTER -->
+    <!-- ========================= -->
+
+    <footer
+        class="relative z-10 w-full max-w-md md:max-w-lg mt-4"
+    >
+
+        <div
+            class="glass-panel rounded-2xl
+                   px-5 py-4 text-center"
+        >
+
+            <div
+                class="flex items-center justify-center
+                       gap-2 mb-1"
+            >
+
+                <div
+                    class="w-1.5 h-1.5 rounded-full
+                           bg-cyan-400"
+                ></div>
+
+                   </div>
+
+            <p class="text-[9px] text-slate-500">
+                © 2026 • Ustadz Umar Abu Abdillah
+            </p>
+
+            <a
+    href="https://www.instagram.com/gunadisetia/"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="text-[8px] text-slate-600 mt-2 inline-block
+           hover:text-cyan-400 transition-colors duration-300"
+>
+    This page was created by gunadisetia
+</a>
+
+
+        </div>
+
+    </footer>
+
+
+    <!-- ========================= -->
+    <!-- JAVASCRIPT -->
+    <!-- ========================= -->
+
+    <script>
+
+        // ==========================================
+        // CONFIGURATION
+        // ==========================================
+
+        const AUDIO_URL =
+            'https://raw.githubusercontent.com/gplusnation/umar/main/audio/01.%20Aqidah%20ahlisunnah%20waljamaah.mp3';
+
+
+        // GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA
+        const APPS_SCRIPT_URL =
+            'https://script.google.com/macros/s/AKfycbzhcA9xEgCaEobLOwkGOkua87GXxZucNZ1o1JW-uHJa4MwkrPOfeRImlt-Sepl40_UY1w/exec';
+
+
+        // ==========================================
+        // AUDIO
+        // ==========================================
+
+        const audio = new Audio(AUDIO_URL);
+
+        audio.crossOrigin = "anonymous";
+
+
+        // ==========================================
+        // ELEMENTS
+        // ==========================================
+
+        const btnPlayPause =
+            document.getElementById('btnPlayPause');
+
+        const iconPlay =
+            document.getElementById('iconPlay');
+
+        const iconPause =
+            document.getElementById('iconPause');
+
+        const progressBar =
+            document.getElementById('progressBar');
+
+        const currentTimeEl =
+            document.getElementById('currentTime');
+
+        const durationEl =
+            document.getElementById('duration');
+
+        const volumeSlider =
+            document.getElementById('volumeSlider');
+
+        const statusText =
+            document.getElementById('statusText');
+
+        const visualizerPlaceholder =
+            document.getElementById('visualizerPlaceholder');
+
+        const btnRewind =
+            document.getElementById('btnRewind');
+
+        const btnForward =
+            document.getElementById('btnForward');
+
+
+        // ==========================================
+        // AUDIO CONTEXT
+        // ==========================================
+
+        let audioContext;
+        let analyser;
+        let dataArray;
+        let source;
+        let isAudioContextSetup = false;
+
+
+        function setupAudioContext() {
+
+            if (isAudioContextSetup) {
+                return;
+            }
+
+            const AudioContext =
+                window.AudioContext ||
+                window.webkitAudioContext;
+
+            audioContext = new AudioContext();
+
+            analyser =
+                audioContext.createAnalyser();
+
+            analyser.fftSize = 256;
+
+            source =
+                audioContext.createMediaElementSource(audio);
+
+            source.connect(analyser);
+
+            analyser.connect(
+                audioContext.destination
+            );
+
+            const bufferLength =
+                analyser.frequencyBinCount;
+
+            dataArray =
+                new Uint8Array(bufferLength);
+
+            isAudioContextSetup = true;
+        }
+
+
+        // ==========================================
+        // VISUALIZER
+        // ==========================================
+
+        function drawVisualizer() {
+
+            if (!analyser) {
+                return;
+            }
+
+            const canvas =
+                document.getElementById(
+                    'audioVisualizer'
+                );
+
+            const ctx =
+                canvas.getContext('2d');
+
+            const rect =
+                canvas.getBoundingClientRect();
+
+            const dpr =
+                window.devicePixelRatio || 1;
+
+            canvas.width =
+                rect.width * dpr;
+
+            canvas.height =
+                rect.height * dpr;
+
+            ctx.setTransform(
+                dpr,
+                0,
+                0,
+                dpr,
+                0,
+                0
+            );
+
+            const width = rect.width;
+            const height = rect.height;
+
+            const barWidth =
+                (width /
+                analyser.frequencyBinCount) *
+                2.5;
+
+            function renderFrame() {
+
+                requestAnimationFrame(
+                    renderFrame
+                );
+
+                analyser.getByteFrequencyData(
+                    dataArray
+                );
+
+                ctx.clearRect(
+                    0,
+                    0,
+                    width,
+                    height
+                );
+
+                const gradient =
+                    ctx.createLinearGradient(
+                        0,
+                        height,
+                        0,
+                        0
+                    );
+
+                gradient.addColorStop(
+                    0,
+                    '#0ea5e9'
+                );
+
+                gradient.addColorStop(
+                    1,
+                    '#6366f1'
+                );
+
+                let x = 0;
+
+                for (
+                    let i = 0;
+                    i < analyser.frequencyBinCount;
+                    i++
+                ) {
+
+                    const barHeight =
+                        (dataArray[i] / 255) *
+                        height;
+
+                    ctx.fillStyle = gradient;
+
+                    ctx.beginPath();
+
+                    ctx.roundRect(
+                        x,
+                        height - barHeight,
+                        barWidth - 2,
+                        barHeight,
+                        4
+                    );
+
+                    ctx.fill();
+
+                    x += barWidth;
+                }
+            }
+
+            renderFrame();
+        }
+
+
+        // ==========================================
+        // FORMAT TIME
+        // ==========================================
+
+        function formatTime(seconds) {
+
+            if (
+                !isFinite(seconds) ||
+                seconds < 0
+            ) {
+                return '00:00';
+            }
+
+            const min =
+                Math.floor(seconds / 60);
+
+            const sec =
+                Math.floor(seconds % 60);
+
+            return (
+                min.toString().padStart(2, '0') +
+                ':' +
+                sec.toString().padStart(2, '0')
+            );
+        }
+
+
+        // ==========================================
+        // TELEGRAM NOTIFICATION
+        // ==========================================
+
+        async function sendTelegramNotification(
+            action
+        ) {
+
+            try {
+
+                await fetch(
+                    APPS_SCRIPT_URL,
+                    {
+                        method: 'POST',
+
+                        mode: 'no-cors',
+
+                        headers: {
+                            'Content-Type':
+                                'text/plain;charset=utf-8'
+                        },
+
+                        body: JSON.stringify({
+
+                            action: action,
+
+                            audio:
+                                'Syarah Aqidah Ahlisunnah waljamaah'
+
+                        })
+                    }
+                );
+
+                console.log(
+                    'Telegram notification sent'
+                );
+
+            } catch (error) {
+
+                console.error(
+                    'Failed to send Telegram notification:',
+                    error
+                );
+            }
+        }
+
+
+        // ==========================================
+        // PLAY / PAUSE
+        // ==========================================
+
+        async function togglePlay() {
+
+            if (!isAudioContextSetup) {
+
+                setupAudioContext();
+
+                drawVisualizer();
+
+                visualizerPlaceholder.style.display =
+                    'none';
+            }
+
+
+            if (
+                audioContext &&
+                audioContext.state === 'suspended'
+            ) {
+
+                await audioContext.resume();
+            }
+
+
+            if (audio.paused) {
+
+                try {
+
+                    await audio.play();
+
+                    iconPlay.classList.add(
+                        'hidden'
+                    );
+
+                    iconPause.classList.remove(
+                        'hidden'
+                    );
+
+                    statusText.innerText =
+                        'Memutar audio...';
+
+                    statusText.classList.add(
+                        'text-cyan-400'
+                    );
+
+                    // Kirim notifikasi Telegram
+                    sendTelegramNotification(
+                        'Play Audio'
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        'Audio gagal diputar:',
+                        error
+                    );
+
+                    statusText.innerText =
+                        'Gagal memutar audio';
+
+                    statusText.classList.remove(
+                        'text-cyan-400'
+                    );
+                }
+
+            } else {
+
+                audio.pause();
+
+                iconPlay.classList.remove(
+                    'hidden'
+                );
+
+                iconPause.classList.add(
+                    'hidden'
+                );
+
+                statusText.innerText =
+                    'Audio dijeda';
+
+                statusText.classList.remove(
+                    'text-cyan-400'
+                );
+            }
+        }
+
+
+        // ==========================================
+        // PLAY BUTTON
+        // ==========================================
+
+        btnPlayPause.addEventListener(
+            'click',
+            togglePlay
+        );
+
+
+        // ==========================================
+        // TIME UPDATE
+        // ==========================================
+
+        audio.addEventListener(
+            'timeupdate',
+            () => {
+
+                const current =
+                    audio.currentTime;
+
+                const duration =
+                    audio.duration;
+
+                if (!isNaN(duration)) {
+
+                    const progressPercent =
+                        (current / duration) *
+                        100;
+
+                    progressBar.value =
+                        progressPercent;
+
+                    currentTimeEl.innerText =
+                        formatTime(current);
+
+                    durationEl.innerText =
+                        formatTime(duration);
+                }
+            }
+        );
+
+
+        // ==========================================
+        // METADATA
+        // ==========================================
+
+        audio.addEventListener(
+            'loadedmetadata',
+            () => {
+
+                durationEl.innerText =
+                    formatTime(audio.duration);
+            }
+        );
+
+
+        // ==========================================
+        // AUDIO ENDED
+        // ==========================================
+
+        audio.addEventListener(
+            'ended',
+            () => {
+
+                iconPlay.classList.remove(
+                    'hidden'
+                );
+
+                iconPause.classList.add(
+                    'hidden'
+                );
+
+                statusText.innerText =
+                    'Selesai';
+
+                statusText.classList.remove(
+                    'text-cyan-400'
+                );
+
+                progressBar.value = 0;
+
+                currentTimeEl.innerText =
+                    '00:00';
+            }
+        );
+
+
+        // ==========================================
+        // PROGRESS BAR
+        // ==========================================
+
+        progressBar.addEventListener(
+            'input',
+            (e) => {
+
+                const duration =
+                    audio.duration;
+
+                if (!isNaN(duration)) {
+
+                    audio.currentTime =
+                        (e.target.value / 100) *
+                        duration;
+                }
+            }
+        );
+
+
+        // ==========================================
+        // VOLUME
+        // ==========================================
+
+        volumeSlider.addEventListener(
+            'input',
+            (e) => {
+
+                audio.volume =
+                    parseFloat(e.target.value);
+            }
+        );
+
+
+        // ==========================================
+        // REWIND 10 SECONDS
+        // ==========================================
+
+        btnRewind.addEventListener(
+            'click',
+            () => {
+
+                audio.currentTime =
+                    Math.max(
+                        0,
+                        audio.currentTime - 10
+                    );
+            }
+        );
+
+
+        // ==========================================
+        // FORWARD 10 SECONDS
+        // ==========================================
+
+        btnForward.addEventListener(
+            'click',
+            () => {
+
+                if (!isNaN(audio.duration)) {
+
+                    audio.currentTime =
+                        Math.min(
+                            audio.duration,
+                            audio.currentTime + 10
+                        );
+                }
+            }
+        );
+
+
+        // ==========================================
+        // PAGE LOAD
+        // ==========================================
+
+        window.addEventListener(
+            'load',
+            () => {
+
+                console.log(
+                    'Dashboard loaded'
+                );
+            }
+        );
+
+    </script>
+
+</body>
+</html>
