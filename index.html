@@ -143,16 +143,43 @@
             </div>
 
             <h1
+                id="trackTitle"
                 class="text-xl md:text-2xl font-bold
                        text-white mb-1 leading-tight"
             >
-                Syarah Aqidah Ahlisunnah waljamaah
+                Memuat daftar audio...
             </h1>
 
             <p class="text-slate-400 text-sm">
                 Ustadz Umar Abu Abdillah
             </p>
 
+            <button
+                id="btnTogglePlaylist"
+                class="mt-3 inline-flex items-center gap-1.5
+                       text-xs text-cyan-400 hover:text-cyan-300
+                       transition-colors"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h8a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <span id="playlistToggleLabel">Lihat Daftar Audio</span>
+                <span id="playlistCount" class="text-slate-500"></span>
+            </button>
+
+        </div>
+
+        <!-- ========================= -->
+        <!-- PLAYLIST (dari GitHub) -->
+        <!-- ========================= -->
+        <div id="playlistPanel" class="hidden px-6 pb-2">
+            <div class="glass-panel rounded-2xl border border-slate-700/50 max-h-56 overflow-y-auto divide-y divide-slate-800">
+                <div id="playlistLoading" class="p-4 text-center text-xs text-slate-500">
+                    Mengambil data dari GitHub...
+                </div>
+                <ul id="playlistList" class="divide-y divide-slate-800"></ul>
+            </div>
+            <p id="playlistSync" class="text-[10px] text-slate-600 mt-2 text-center"></p>
         </div>
 
 
@@ -447,8 +474,20 @@
         // CONFIGURATION
         // ==========================================
 
-        const AUDIO_URL =
-            'https://raw.githubusercontent.com/gplusnation/umar/main/audio/01.%20Aqidah%20ahlisunnah%20waljamaah.mp3';
+        // Repo & folder GitHub tempat file audio disimpan
+        const GITHUB_OWNER = 'gplusnation';
+        const GITHUB_REPO = 'umar';
+        const GITHUB_BRANCH = 'main';
+        const GITHUB_FOLDER = 'audio';
+
+        const GITHUB_API_URL =
+            `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}?ref=${GITHUB_BRANCH}`;
+
+        // Cek data baru setiap 60 detik
+        const REFRESH_INTERVAL_MS = 60000;
+
+        // Ekstensi file yang dianggap audio
+        const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg|m4a|aac)$/i;
 
 
         // GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA
@@ -460,9 +499,18 @@
         // AUDIO
         // ==========================================
 
-        const audio = new Audio(AUDIO_URL);
+        const audio = new Audio();
 
         audio.crossOrigin = "anonymous";
+
+
+        // ==========================================
+        // PLAYLIST STATE
+        // ==========================================
+
+        let playlist = [];
+        let currentTrackIndex = -1;
+        let hasAutoStartedFirstTrack = false;
 
 
         // ==========================================
@@ -501,6 +549,338 @@
 
         const btnForward =
             document.getElementById('btnForward');
+
+        const trackTitle =
+            document.getElementById('trackTitle');
+
+        const btnTogglePlaylist =
+            document.getElementById('btnTogglePlaylist');
+
+        const playlistToggleLabel =
+            document.getElementById('playlistToggleLabel');
+
+        const playlistCount =
+            document.getElementById('playlistCount');
+
+        const playlistPanel =
+            document.getElementById('playlistPanel');
+
+        const playlistLoading =
+            document.getElementById('playlistLoading');
+
+        const playlistList =
+            document.getElementById('playlistList');
+
+        const playlistSync =
+            document.getElementById('playlistSync');
+
+
+        // ==========================================
+        // HELPER: nama file jadi judul yang enak dibaca
+        // ==========================================
+
+        function fileNameToTitle(fileName) {
+
+            const withoutExt =
+                fileName.replace(AUDIO_EXTENSIONS, '');
+
+            return decodeURIComponent(withoutExt)
+                .replace(/[_-]+/g, ' ')
+                .trim();
+        }
+
+
+        // ==========================================
+        // AMBIL DAFTAR AUDIO DARI GITHUB
+        // ==========================================
+
+        async function fetchPlaylistFromGitHub() {
+
+            try {
+
+                const response = await fetch(
+                    GITHUB_API_URL,
+                    {
+                        headers: {
+                            'Accept': 'application/vnd.github+json'
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        'GitHub API merespon status ' +
+                        response.status
+                    );
+                }
+
+                const files = await response.json();
+
+                if (!Array.isArray(files)) {
+                    throw new Error(
+                        'Folder audio tidak ditemukan di repo'
+                    );
+                }
+
+                const audioFiles = files
+                    .filter(
+                        (item) =>
+                            item.type === 'file' &&
+                            AUDIO_EXTENSIONS.test(item.name)
+                    )
+                    .sort(
+                        (a, b) =>
+                            a.name.localeCompare(
+                                b.name,
+                                undefined,
+                                { numeric: true, sensitivity: 'base' }
+                            )
+                    );
+
+                const newPlaylist = audioFiles.map(
+                    (item) => ({
+                        name: item.name,
+                        title: fileNameToTitle(item.name),
+                        url: item.download_url,
+                        sha: item.sha
+                    })
+                );
+
+                const previousSha = playlist
+                    .map((t) => t.sha)
+                    .join(',');
+
+                const newSha = newPlaylist
+                    .map((t) => t.sha)
+                    .join(',');
+
+                const isFirstLoad =
+                    playlist.length === 0;
+
+                const hasChanged =
+                    previousSha !== newSha;
+
+                if (hasChanged) {
+
+                    const currentTrack =
+                        currentTrackIndex >= 0
+                            ? playlist[currentTrackIndex]
+                            : null;
+
+                    playlist = newPlaylist;
+
+                    renderPlaylist();
+
+                    playlistCount.innerText =
+                        '(' + playlist.length + ')';
+
+                    if (currentTrack) {
+
+                        // Pertahankan posisi track yang sedang
+                        // diputar walau daftar berubah
+                        const stillIndex =
+                            playlist.findIndex(
+                                (t) => t.sha === currentTrack.sha
+                            );
+
+                        currentTrackIndex =
+                            stillIndex !== -1
+                                ? stillIndex
+                                : currentTrackIndex;
+
+                        highlightActiveTrack();
+                    }
+
+                    if (
+                        isFirstLoad &&
+                        !hasAutoStartedFirstTrack &&
+                        playlist.length > 0
+                    ) {
+
+                        hasAutoStartedFirstTrack = true;
+
+                        loadTrack(0, { autoplay: false });
+                    }
+                }
+
+                playlistSync.innerText =
+                    'Tersinkron • ' +
+                    new Date().toLocaleTimeString('id-ID');
+
+            } catch (error) {
+
+                console.error(
+                    'Gagal mengambil playlist dari GitHub:',
+                    error
+                );
+
+                playlistLoading.innerText =
+                    'Gagal memuat daftar audio dari GitHub';
+
+                playlistSync.innerText =
+                    'Terakhir gagal sinkron • ' +
+                    new Date().toLocaleTimeString('id-ID');
+            }
+        }
+
+
+        // ==========================================
+        // RENDER DAFTAR AUDIO
+        // ==========================================
+
+        function renderPlaylist() {
+
+            playlistLoading.classList.add('hidden');
+
+            playlistList.innerHTML = '';
+
+            playlist.forEach((track, index) => {
+
+                const li = document.createElement('li');
+
+                li.className =
+                    'playlist-item px-4 py-3 text-sm ' +
+                    'cursor-pointer hover:bg-slate-800/60 ' +
+                    'transition-colors flex items-center gap-2';
+
+                li.dataset.index = index;
+
+                li.innerHTML =
+                    '<span class="text-slate-500 text-xs w-5 shrink-0">' +
+                    (index + 1) +
+                    '</span>' +
+                    '<span class="track-label text-slate-300 truncate">' +
+                    track.title +
+                    '</span>';
+
+                li.addEventListener('click', () => {
+                    loadTrack(index, { autoplay: true });
+                    playlistPanel.classList.add('hidden');
+                    playlistToggleLabel.innerText =
+                        'Lihat Daftar Audio';
+                });
+
+                playlistList.appendChild(li);
+            });
+
+            highlightActiveTrack();
+        }
+
+
+        function highlightActiveTrack() {
+
+            document
+                .querySelectorAll('#playlistList .playlist-item')
+                .forEach((el) => {
+
+                    const isActive =
+                        Number(el.dataset.index) ===
+                        currentTrackIndex;
+
+                    el.classList.toggle(
+                        'bg-cyan-900/30', isActive
+                    );
+
+                    const label =
+                        el.querySelector('.track-label');
+
+                    label.classList.toggle(
+                        'text-cyan-400', isActive
+                    );
+
+                    label.classList.toggle(
+                        'text-slate-300', !isActive
+                    );
+                });
+        }
+
+
+        // ==========================================
+        // MUAT & PUTAR TRACK TERTENTU
+        // ==========================================
+
+        function loadTrack(index, options) {
+
+            if (
+                index < 0 ||
+                index >= playlist.length
+            ) {
+                return;
+            }
+
+            const opts = options || {};
+
+            const wasPlaying = !audio.paused;
+
+            currentTrackIndex = index;
+
+            const track = playlist[index];
+
+            audio.src = track.url;
+
+            trackTitle.innerText = track.title;
+
+            progressBar.value = 0;
+
+            currentTimeEl.innerText = '00:00';
+
+            durationEl.innerText = '00:00';
+
+            highlightActiveTrack();
+
+            if (opts.autoplay || wasPlaying) {
+
+                audio.play().then(() => {
+
+                    iconPlay.classList.add('hidden');
+                    iconPause.classList.remove('hidden');
+
+                    statusText.innerText =
+                        'Memutar audio...';
+
+                    statusText.classList.add(
+                        'text-cyan-400'
+                    );
+
+                }).catch((error) => {
+                    console.error(
+                        'Audio gagal diputar:', error
+                    );
+                });
+            }
+        }
+
+
+        function playNextTrack() {
+
+            if (playlist.length === 0) {
+                return;
+            }
+
+            const nextIndex =
+                (currentTrackIndex + 1) % playlist.length;
+
+            loadTrack(nextIndex, { autoplay: true });
+        }
+
+
+        // ==========================================
+        // TOGGLE PANEL PLAYLIST
+        // ==========================================
+
+        btnTogglePlaylist.addEventListener(
+            'click',
+            () => {
+
+                const isHidden =
+                    playlistPanel.classList.toggle('hidden');
+
+                playlistToggleLabel.innerText =
+                    isHidden
+                        ? 'Lihat Daftar Audio'
+                        : 'Sembunyikan Daftar Audio';
+            }
+        );
 
 
         // ==========================================
@@ -720,7 +1100,10 @@
                             action: action,
 
                             audio:
-                                'Syarah Aqidah Ahlisunnah waljamaah'
+                                (currentTrackIndex >= 0 &&
+                                 playlist[currentTrackIndex])
+                                    ? playlist[currentTrackIndex].title
+                                    : 'Syarah Aqidah Ahlisunnah waljamaah'
 
                         })
                     }
@@ -745,6 +1128,21 @@
         // ==========================================
 
         async function togglePlay() {
+
+            if (currentTrackIndex === -1) {
+
+                if (playlist.length === 0) {
+
+                    statusText.innerText =
+                        'Daftar audio belum tersedia';
+
+                    return;
+                }
+
+                loadTrack(0, { autoplay: true });
+
+                return;
+            }
 
             if (!isAudioContextSetup) {
 
@@ -894,6 +1292,20 @@
             'ended',
             () => {
 
+                progressBar.value = 0;
+
+                currentTimeEl.innerText =
+                    '00:00';
+
+                if (
+                    playlist.length > 1
+                ) {
+
+                    // Lanjut otomatis ke track berikutnya
+                    playNextTrack();
+                    return;
+                }
+
                 iconPlay.classList.remove(
                     'hidden'
                 );
@@ -908,11 +1320,6 @@
                 statusText.classList.remove(
                     'text-cyan-400'
                 );
-
-                progressBar.value = 0;
-
-                currentTimeEl.innerText =
-                    '00:00';
             }
         );
 
@@ -999,6 +1406,15 @@
 
                 console.log(
                     'Dashboard loaded'
+                );
+
+                // Ambil daftar audio pertama kali
+                fetchPlaylistFromGitHub();
+
+                // Cek data baru di repo GitHub secara berkala
+                setInterval(
+                    fetchPlaylistFromGitHub,
+                    REFRESH_INTERVAL_MS
                 );
             }
         );
