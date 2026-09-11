@@ -142,42 +142,44 @@
                 Audio Kajian
             </div>
 
-            <h1
-                id="trackTitle"
-                class="text-xl md:text-2xl font-bold
-                       text-white mb-1 leading-tight"
-            >
-                Memuat daftar audio...
+            <h1>
+             Syarah Aqidah Ahlissunnati Wal Jamaah
             </h1>
 
             <p class="text-slate-400 text-sm">
-                Ustadz Umar Abu Abdillah
+                🎙 Ustadz Umar Abu Abdillah
             </p>
 
-            <button
-                id="btnTogglePlaylist"
+            <div
                 class="mt-3 inline-flex items-center gap-1.5
-                       text-xs text-cyan-400 hover:text-cyan-300
-                       transition-colors"
+                       text-xs text-cyan-400"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h8a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
                 </svg>
-                <span id="playlistToggleLabel">Lihat Daftar Audio</span>
+                <span>Daftar Audio</span>
                 <span id="playlistCount" class="text-slate-500"></span>
-            </button>
+            </div>
 
         </div>
 
         <!-- ========================= -->
         <!-- PLAYLIST (dari GitHub) -->
         <!-- ========================= -->
-        <div id="playlistPanel" class="hidden px-6 pb-2">
+        <div id="playlistPanel" class="px-6 pb-2">
             <div class="glass-panel rounded-2xl border border-slate-700/50 max-h-56 overflow-y-auto divide-y divide-slate-800">
                 <div id="playlistLoading" class="p-4 text-center text-xs text-slate-500">
                     Mengambil data dari GitHub...
                 </div>
                 <ul id="playlistList" class="divide-y divide-slate-800"></ul>
+                <button
+                    id="btnLoadMorePlaylist"
+                    class="hidden w-full py-2.5 text-xs
+                           text-cyan-400 hover:text-cyan-300
+                           hover:bg-slate-800/60 transition-colors"
+                >
+                    Muat 10 lagi
+                </button>
             </div>
             <p id="playlistSync" class="text-[10px] text-slate-600 mt-2 text-center"></p>
         </div>
@@ -553,12 +555,6 @@
         const trackTitle =
             document.getElementById('trackTitle');
 
-        const btnTogglePlaylist =
-            document.getElementById('btnTogglePlaylist');
-
-        const playlistToggleLabel =
-            document.getElementById('playlistToggleLabel');
-
         const playlistCount =
             document.getElementById('playlistCount');
 
@@ -574,20 +570,8 @@
         const playlistSync =
             document.getElementById('playlistSync');
 
-
-        // ==========================================
-        // HELPER: nama file jadi judul yang enak dibaca
-        // ==========================================
-
-        function fileNameToTitle(fileName) {
-
-            const withoutExt =
-                fileName.replace(AUDIO_EXTENSIONS, '');
-
-            return decodeURIComponent(withoutExt)
-                .replace(/[_-]+/g, ' ')
-                .trim();
-        }
+        const btnLoadMorePlaylist =
+            document.getElementById('btnLoadMorePlaylist');
 
 
         // ==========================================
@@ -637,10 +621,12 @@
                             )
                     );
 
+                // Urutan kronologis (file pertama = Audio 1,
+                // file terbaru = nomor paling besar)
                 const newPlaylist = audioFiles.map(
-                    (item) => ({
+                    (item, index) => ({
                         name: item.name,
-                        title: fileNameToTitle(item.name),
+                        title: 'Audio ' + (index + 1),
                         url: item.download_url,
                         sha: item.sha
                     })
@@ -726,7 +712,11 @@
 
         // ==========================================
         // RENDER DAFTAR AUDIO
+        // Urutan tampil: terbaru -> terlama
+        // Ditampilkan bertahap, 10 per halaman
         // ==========================================
+
+        let visiblePlaylistCount = 10;
 
         function renderPlaylist() {
 
@@ -734,7 +724,19 @@
 
             playlistList.innerHTML = '';
 
-            playlist.forEach((track, index) => {
+            // playlist[] tersimpan kronologis (index 0 = Audio 1,
+            // paling lama). Untuk tampilan, dibalik agar yang
+            // paling baru muncul paling atas.
+            const displayOrder = playlist
+                .map((_, index) => index)
+                .reverse();
+
+            const visibleIndexes =
+                displayOrder.slice(0, visiblePlaylistCount);
+
+            visibleIndexes.forEach((index) => {
+
+                const track = playlist[index];
 
                 const li = document.createElement('li');
 
@@ -746,25 +748,48 @@
                 li.dataset.index = index;
 
                 li.innerHTML =
-                    '<span class="text-slate-500 text-xs w-5 shrink-0">' +
-                    (index + 1) +
-                    '</span>' +
                     '<span class="track-label text-slate-300 truncate">' +
                     track.title +
                     '</span>';
 
                 li.addEventListener('click', () => {
-                    loadTrack(index, { autoplay: true });
-                    playlistPanel.classList.add('hidden');
-                    playlistToggleLabel.innerText =
-                        'Lihat Daftar Audio';
+                    playTrackByIndex(index);
                 });
 
                 playlistList.appendChild(li);
             });
 
+            const hasMore =
+                displayOrder.length > visiblePlaylistCount;
+
+            btnLoadMorePlaylist.classList.toggle(
+                'hidden', !hasMore
+            );
+
+            if (hasMore) {
+
+                const remaining =
+                    displayOrder.length - visiblePlaylistCount;
+
+                btnLoadMorePlaylist.innerText =
+                    'Muat ' +
+                    Math.min(10, remaining) +
+                    ' lagi (' + remaining + ' tersisa)';
+            }
+
             highlightActiveTrack();
         }
+
+
+        btnLoadMorePlaylist.addEventListener(
+            'click',
+            () => {
+
+                visiblePlaylistCount += 10;
+
+                renderPlaylist();
+            }
+        );
 
 
         function highlightActiveTrack() {
@@ -796,7 +821,7 @@
 
 
         // ==========================================
-        // MUAT & PUTAR TRACK TERTENTU
+        // MUAT TRACK TERTENTU (tanpa memutar)
         // ==========================================
 
         function loadTrack(index, options) {
@@ -809,8 +834,6 @@
             }
 
             const opts = options || {};
-
-            const wasPlaying = !audio.paused;
 
             currentTrackIndex = index;
 
@@ -828,26 +851,86 @@
 
             highlightActiveTrack();
 
-            if (opts.autoplay || wasPlaying) {
+            if (opts.autoplay) {
 
-                audio.play().then(() => {
-
-                    iconPlay.classList.add('hidden');
-                    iconPause.classList.remove('hidden');
-
-                    statusText.innerText =
-                        'Memutar audio...';
-
-                    statusText.classList.add(
-                        'text-cyan-400'
-                    );
-
-                }).catch((error) => {
-                    console.error(
-                        'Audio gagal diputar:', error
-                    );
-                });
+                ensureAudioReadyAndPlay();
             }
+        }
+
+
+        // ==========================================
+        // PASTIKAN AUDIO CONTEXT & VISUALIZER SIAP,
+        // LALU PUTAR AUDIO + KIRIM NOTIFIKASI TELEGRAM
+        // Dipakai di SEMUA jalur play (tombol play,
+        // klik daftar audio, lanjut track berikutnya)
+        // agar konsisten sejak putaran pertama kali.
+        // ==========================================
+
+        async function ensureAudioReadyAndPlay() {
+
+            if (!isAudioContextSetup) {
+
+                setupAudioContext();
+
+                drawVisualizer();
+
+                visualizerPlaceholder.style.display =
+                    'none';
+            }
+
+            if (
+                audioContext &&
+                audioContext.state === 'suspended'
+            ) {
+
+                await audioContext.resume();
+            }
+
+            try {
+
+                await audio.play();
+
+                iconPlay.classList.add('hidden');
+                iconPause.classList.remove('hidden');
+
+                statusText.innerText =
+                    'Memutar audio...';
+
+                statusText.classList.add(
+                    'text-cyan-400'
+                );
+
+                // Kirim notifikasi Telegram
+                sendTelegramNotification(
+                    'Play Audio'
+                );
+
+            } catch (error) {
+
+                console.error(
+                    'Audio gagal diputar:', error
+                );
+
+                statusText.innerText =
+                    'Gagal memutar audio';
+
+                statusText.classList.remove(
+                    'text-cyan-400'
+                );
+            }
+        }
+
+
+        // ==========================================
+        // MUAT LALU LANGSUNG PUTAR TRACK TERTENTU
+        // (dipakai saat klik item di daftar audio)
+        // ==========================================
+
+        function playTrackByIndex(index) {
+
+            loadTrack(index, { autoplay: false });
+
+            ensureAudioReadyAndPlay();
         }
 
 
@@ -860,27 +943,8 @@
             const nextIndex =
                 (currentTrackIndex + 1) % playlist.length;
 
-            loadTrack(nextIndex, { autoplay: true });
+            playTrackByIndex(nextIndex);
         }
-
-
-        // ==========================================
-        // TOGGLE PANEL PLAYLIST
-        // ==========================================
-
-        btnTogglePlaylist.addEventListener(
-            'click',
-            () => {
-
-                const isHidden =
-                    playlistPanel.classList.toggle('hidden');
-
-                playlistToggleLabel.innerText =
-                    isHidden
-                        ? 'Lihat Daftar Audio'
-                        : 'Sembunyikan Daftar Audio';
-            }
-        );
 
 
         // ==========================================
@@ -1144,66 +1208,9 @@
                 return;
             }
 
-            if (!isAudioContextSetup) {
-
-                setupAudioContext();
-
-                drawVisualizer();
-
-                visualizerPlaceholder.style.display =
-                    'none';
-            }
-
-
-            if (
-                audioContext &&
-                audioContext.state === 'suspended'
-            ) {
-
-                await audioContext.resume();
-            }
-
-
             if (audio.paused) {
 
-                try {
-
-                    await audio.play();
-
-                    iconPlay.classList.add(
-                        'hidden'
-                    );
-
-                    iconPause.classList.remove(
-                        'hidden'
-                    );
-
-                    statusText.innerText =
-                        'Memutar audio...';
-
-                    statusText.classList.add(
-                        'text-cyan-400'
-                    );
-
-                    // Kirim notifikasi Telegram
-                    sendTelegramNotification(
-                        'Play Audio'
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        'Audio gagal diputar:',
-                        error
-                    );
-
-                    statusText.innerText =
-                        'Gagal memutar audio';
-
-                    statusText.classList.remove(
-                        'text-cyan-400'
-                    );
-                }
+                await ensureAudioReadyAndPlay();
 
             } else {
 
